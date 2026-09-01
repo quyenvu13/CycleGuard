@@ -74,25 +74,64 @@ export async function evaluatePairTx(account, workspace) {
   })
 }
 
+function rawLeaderExecution(value) {
+  const consensus = value?.consensus_data || value?.consensusData || value?.transaction?.consensus_data || value?.transaction?.consensusData
+  let leader = consensus?.leader_receipt || consensus?.leaderReceipt
+  if (Array.isArray(leader)) leader = leader[0]
+  return String(leader?.execution_result || leader?.executionResult || '').toUpperCase()
+}
+
+function executionName(value) {
+  return String(
+    value?.txExecutionResultName ||
+    value?.executionResultName ||
+    value?.transaction?.txExecutionResultName ||
+    value?.transaction?.executionResultName ||
+    ''
+  ).toUpperCase()
+}
+
 export async function waitFinalized(txHash) {
-  return readClient.waitForTransactionReceipt({
+  const receipt = await readClient.waitForTransactionReceipt({
     hash: txHash,
     status: TransactionStatus.FINALIZED,
     interval: 5000,
     retries: 240,
-    fullTransaction: false,
+    fullTransaction: true,
   })
+
+  // StudioNet can occasionally return a FINALIZED receipt without the normalized
+  // txExecutionResultName field. Fetch the transaction once as a second source of
+  // execution evidence instead of treating missing metadata as a revert.
+  if (executionOutcome(receipt).ok !== null) return receipt
+  try {
+    const transaction = await readClient.getTransaction({ hash: txHash })
+    return { ...receipt, _transaction: transaction }
+  } catch {
+    return receipt
+  }
 }
 
 export function executionOutcome(receipt) {
-  const name = receipt?.txExecutionResultName || receipt?.executionResultName || ''
-  if (name === ExecutionResult.FINISHED_WITH_RETURN || name === 'FINISHED_WITH_RETURN') {
-    return { ok: true, name: 'FINISHED_WITH_RETURN' }
+  const sources = [receipt, receipt?._transaction]
+  for (const source of sources) {
+    const name = executionName(source)
+    if (name === ExecutionResult.FINISHED_WITH_RETURN || name === 'FINISHED_WITH_RETURN') {
+      return { ok: true, name: 'FINISHED_WITH_RETURN', evidence: 'SDK' }
+    }
+    if (name === ExecutionResult.FINISHED_WITH_ERROR || name === 'FINISHED_WITH_ERROR') {
+      return { ok: false, name: 'FINISHED_WITH_ERROR', evidence: 'SDK' }
+    }
+
+    const raw = rawLeaderExecution(source)
+    if (raw === 'SUCCESS' || raw === 'FINISHED_WITH_RETURN') {
+      return { ok: true, name: 'FINISHED_WITH_RETURN', evidence: 'LEADER_RECEIPT' }
+    }
+    if (raw === 'ERROR' || raw === 'FINISHED_WITH_ERROR') {
+      return { ok: false, name: 'FINISHED_WITH_ERROR', evidence: 'LEADER_RECEIPT' }
+    }
   }
-  if (name === ExecutionResult.FINISHED_WITH_ERROR || name === 'FINISHED_WITH_ERROR') {
-    return { ok: false, name: 'FINISHED_WITH_ERROR' }
-  }
-  return { ok: false, name: name || 'UNKNOWN' }
+  return { ok: null, name: 'EXECUTION_RESULT_UNAVAILABLE', evidence: 'NONE' }
 }
 
 export function txExplorerUrl(hash) {

@@ -220,8 +220,26 @@ async function createWorkspace() {
     setTx({ phase: 'PENDING', label: 'Create workspace', hash, message: 'Transaction sent. Waiting for FINALIZED…' })
     const receipt = await waitFinalized(hash)
     const outcome = executionOutcome(receipt)
-    if (!outcome.ok) throw new Error(`FINALIZED with ${outcome.name}. Contract state was not treated as successful.`)
+    if (outcome.ok === false) throw new Error(`FINALIZED with ${outcome.name}. Contract state was not treated as successful.`)
     const created = await locateCreatedWorkspace(Number(before.workspace_count), state.account, a, b)
+    if (outcome.ok === null) {
+      if (created) {
+        state.workspace = created
+        state.attempt = null
+        $('workspaceId').value = String(created.workspace_id)
+        renderWorkspace()
+      }
+      await refreshConfig()
+      setTx({
+        phase: 'PENDING',
+        label: 'Workspace execution needs verification',
+        hash,
+        message: created
+          ? `FINALIZED · GenVM result unavailable from StudioNet RPC. Workspace #${created.workspace_id} was re-read from accepted state, but execution success is not claimed; verify Explorer before another write.`
+          : 'FINALIZED · GenVM result unavailable from StudioNet RPC. No success or revert is claimed; verify Explorer and contract state before retrying.',
+      })
+      return
+    }
     if (created) {
       state.workspace = created
       state.attempt = null
@@ -263,7 +281,21 @@ async function evaluatePair() {
     setTx({ phase: 'PENDING', label: 'Evaluate pair', hash, message: 'Semantic consensus is running. Waiting for FINALIZED…' })
     const receipt = await waitFinalized(hash)
     const outcome = executionOutcome(receipt)
-    if (!outcome.ok) throw new Error(`FINALIZED with ${outcome.name}. No successful semantic consequence is claimed.`)
+    if (outcome.ok === false) throw new Error(`FINALIZED with ${outcome.name}. No successful semantic consequence is claimed.`)
+    if (outcome.ok === null) {
+      await refreshConfig()
+      const updated = await readWorkspace(Number(state.workspace.workspace_id)).catch(() => null)
+      if (updated) state.workspace = updated
+      state.attempt = updated && Number(updated.attempt_count) > 0 ? await findRecordedAttempt(updated.workspace_id) : null
+      renderWorkspace()
+      setTx({
+        phase: 'PENDING',
+        label: 'Semantic execution needs verification',
+        hash,
+        message: 'FINALIZED · GenVM result unavailable from StudioNet RPC. Contract state was re-read, but semantic success is not claimed; verify Explorer before another write.',
+      })
+      return
+    }
     const refreshedConfig = await refreshConfig()
     const updated = await readWorkspace(Number(state.workspace.workspace_id))
     state.workspace = updated
