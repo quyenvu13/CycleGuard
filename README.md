@@ -57,7 +57,7 @@ The AI/validator layer decides only the narrow binary semantic verdict. Workspac
 - Separately checks `FINISHED_WITH_RETURN` vs `FINISHED_WITH_ERROR`.
 - Re-reads contract state after successful execution; it never invents workspace state from a transaction hash.
 - Finds a newly-created workspace by scanning only the real counter range created after the transaction and matching owner + exact stored clause text.
-- Portal-inspired light dashboard UI with a compact sidebar, clear card hierarchy, and CycleGuard-specific purple/green accents; it is visually inspired by the GenLayer Portal but not a 1:1 copy.
+- Portal-inspired dark dashboard UI with a compact sidebar, clear card hierarchy, and the original CycleGuard charcoal/lime palette; it is visually inspired by the GenLayer Portal but not a 1:1 copy.
 - Responsive desktop/mobile UI.
 - Direct Explorer links for deployed contract and transactions.
 
@@ -108,6 +108,31 @@ vercel.json
 
 ## Runtime status
 
-The fresh contract deployment is verified on StudioNet. Local source/build gates are documented in `TESTING.md`.
+Production URL: `https://cycle-guard-two.vercel.app/`
 
-**Production Vercel runtime testing is intentionally not marked PASS until the deployed Vercel URL is tested end-to-end.**
+Observed Vercel runtime on 2026-09-01: **PASS** for the end-to-end desktop reviewer flow.
+
+Verified live outcomes:
+
+```text
+Workspace #1
+PAIR_DEADLOCKED -> BLOCKED
+attempt_count = 1
+deadlock_blocks = 1
+
+Workspace #2
+PAIR_EXECUTABLE -> ACTIVE
+attempt_count = 1
+deadlock_blocks = 0
+
+Global counters after both evaluations
+workspaces = 2
+clauses = 4
+attempts = 2
+```
+
+Wallet switching was exercised between the creator wallet and an independent reviewer wallet without refresh. Finalized state re-read automatically, and the production browser console remained clean during the final switch/inspect check.
+
+A StudioNet receipt-shape edge case was also found and fixed during testing: a finalized create transaction initially exposed no normalized execution-result name even though on-chain state later proved the write succeeded. The frontend now checks normalized SDK evidence, raw leader-receipt evidence, and one transaction-detail fallback without fabricating success or failure.
+
+See `TESTING.md` for the exact observed sequence and evidence boundaries.

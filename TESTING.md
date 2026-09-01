@@ -39,7 +39,11 @@ GenVM result: SUCCESS
 Constructor: no args
 ```
 
-No fresh semantic test claim is made yet on this address. The prior Accepted contribution runtime evidence remains contract-baseline evidence, not a substitute for testing the new production frontend.
+Production frontend:
+
+```text
+https://cycle-guard-two.vercel.app/
+```
 
 ## Local gates
 
@@ -52,7 +56,7 @@ npm test
 npm run build
 ```
 
-Observed locally on 2026-09-01:
+Observed locally on 2026-09-01 after the StudioNet receipt-evidence fix:
 
 ```text
 PASS source parity
@@ -61,21 +65,25 @@ PASS fresh address binding
 PASS GenLayerJS 1.1.8 pin
 PASS FINALIZED tracking present
 PASS FINISHED_WITH_RETURN / FINISHED_WITH_ERROR split present
+PASS raw leader-receipt execution-result fallback
+PASS one getTransaction fallback when normalized execution evidence is absent
 PASS wallet switching listeners present
 PASS double-send guard
 PASS no fake counter increment pattern
-PASS 7/7 Node tests
+PASS 9/9 Node tests
 PASS production build
-PASS local HTTP asset smoke (/, app.js, styles.css, logo, manifest)
-PASS mobile viewport + responsive breakpoint static gate
+PASS local HTTP asset smoke
+PASS mobile/responsive static gate
 PASS source console scan
 ```
 
-These are local/static gates only. They do not replace wallet-signed Vercel runtime testing.
+## Vercel runtime E2E — PASS
 
-## Required Vercel E2E — pending
+Observed directly on the production Vercel deployment on 2026-09-01.
 
-### Happy / deadlock path
+### 1. Circular/deadlock path — PASS
+
+Creator wallet created Workspace #1 with:
 
 Clause A:
 
@@ -89,30 +97,29 @@ Clause B:
 Integration approval may be issued only after production deployment has begun and has been observed in production.
 ```
 
-Steps:
+Observed before semantic evaluation:
 
 ```text
-Connect reviewer MetaMask
--> Create workspace
--> wait FINALIZED
--> require FINISHED_WITH_RETURN
--> UI re-reads workspace = PENDING
--> Evaluate semantic pair
--> wait FINALIZED
--> require FINISHED_WITH_RETURN
--> UI re-reads actual state
+workspace #1 = PENDING
+workspace owner = creator wallet
+attempt_count = 0
+deadlock_blocks = 0
 ```
 
-Expected:
+An independent reviewer wallet then called the permissionless evaluation flow. Observed final state:
 
 ```text
-PAIR_DEADLOCKED
-BLOCKED
+semantic verdict = PAIR_DEADLOCKED
+workspace #1 = BLOCKED
 attempt_count = 1
 deadlock_blocks = 1
 ```
 
-### Control / executable path
+The UI re-read the actual contract state automatically and disabled further evaluation for the finalized workspace.
+
+### 2. Executable/control path — PASS
+
+Creator wallet created Workspace #2 with:
 
 Clause A:
 
@@ -126,46 +133,100 @@ Clause B:
 Integration approval may be issued after production deployment begins and smoke tests pass.
 ```
 
-Expected after evaluation:
+The independent reviewer wallet evaluated Workspace #2. Observed final state:
 
 ```text
-PAIR_EXECUTABLE
-ACTIVE
+semantic verdict = PAIR_EXECUTABLE
+workspace #2 = ACTIVE
 attempt_count = 1
 deadlock_blocks = 0
 ```
 
-### Negative path
-
-Try evaluating an already-finalized workspace again.
-
-Expected:
+Observed global counters after both semantic evaluations:
 
 ```text
-GenVM execution error / revert is displayed truthfully.
-No state is fabricated.
-No second attempt is claimed.
+workspaces = 2
+clauses = 4
+attempts = 2
 ```
 
-### Wallet switching
+### 3. Wallet switching — PASS
 
-Switch MetaMask account after page load.
+The frontend was switched between the creator wallet and reviewer wallet after page load.
 
-Expected:
+Observed:
 
 ```text
-Connected address updates without page refresh.
-New writes are signed by the newly selected wallet.
+connected address updated without page refresh
+Workspace #1 and #2 remained readable
+reviewer evaluation was recorded under the reviewer wallet
+no fabricated state appeared during account switching
 ```
 
-### Browser gates
+### 4. Automatic finalized state refresh — PASS
+
+No manual page refresh was required to observe the final semantic consequences. The UI rendered:
 
 ```text
-Desktop responsive PASS required
-Mobile responsive PASS required
-No F5 after transaction required
-No double-send required
-Production console clean required
+Workspace #1 -> BLOCKED / PAIR_DEADLOCKED
+Workspace #2 -> ACTIVE / PAIR_EXECUTABLE
 ```
 
-These Vercel runtime gates remain **PENDING** until observed directly on the deployed production URL.
+from post-transaction contract reads.
+
+### 5. StudioNet execution-evidence edge case — FOUND + FIXED + RETESTED
+
+During the first Workspace #1 create transaction, StudioNet finalized the transaction but the receipt presented to the frontend did not expose the normalized `txExecutionResultName`. The old UI therefore displayed `FINALIZED with UNKNOWN` and did not claim success.
+
+A subsequent real state read showed:
+
+```text
+workspaces = 1
+clauses = 2
+attempts = 0
+```
+
+which proved the write had actually executed successfully. No second create transaction was sent.
+
+The frontend was then hardened to:
+
+```text
+1. check normalized SDK execution-result evidence
+2. check raw leader_receipt.execution_result
+3. perform one getTransaction fallback when needed
+4. show verification-required if evidence is still unavailable
+5. never infer success merely from FINALIZED
+```
+
+The later Workspace #2 create/evaluate flow completed under the fixed frontend and the final contract counters/state were correct.
+
+### 6. Console / repeat-read smoke — PASS
+
+After the semantic tests, the browser console was cleared, wallets were switched again, and Workspace #1 / #2 were re-inspected without sending new transactions.
+
+Observed:
+
+```text
+no production console errors
+no retry spam
+no manual F5 required for transaction state
+no duplicate transaction caused by the UI
+```
+
+## Runtime conclusion
+
+```text
+STATIC CHECK: PASS
+DEPLOY: PASS
+TX FINALIZATION TRACKING: PASS
+EXECUTION-EVIDENCE HANDLING: PASS after runtime fix
+SEMANTIC DEADLOCK PATH: PASS
+SEMANTIC EXECUTABLE PATH: PASS
+DETERMINISTIC CONSEQUENCES: PASS
+WALLET SWITCHING: PASS
+FRONTEND INTEGRATION: PASS
+VERCEL RUNTIME E2E (desktop): PASS
+PRODUCTION CONSOLE: PASS
+```
+
+Responsive/mobile behavior is covered by local responsive/static gates; a separate physical/mobile-browser transaction run was not part of this desktop E2E session.
