@@ -57,6 +57,7 @@ The AI/validator layer decides only the narrow binary semantic verdict. Workspac
 - Separately checks `FINISHED_WITH_RETURN` vs `FINISHED_WITH_ERROR`.
 - Re-reads contract state after successful execution; it never invents workspace state from a transaction hash.
 - Finds a newly-created workspace by scanning only the real counter range created after the transaction and matching owner + exact stored clause text.
+- Portal-inspired light dashboard UI with a compact sidebar, clear card hierarchy, and CycleGuard-specific purple/green accents; it is visually inspired by the GenLayer Portal but not a 1:1 copy.
 - Responsive desktop/mobile UI.
 - Direct Explorer links for deployed contract and transactions.
 

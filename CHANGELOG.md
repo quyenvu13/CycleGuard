@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.1 — 2026-09-01
+
+### Changed
+
+- Reworked the frontend into a **GenLayer Portal-inspired** light dashboard while keeping CycleGuard branding and layout distinct.
+- Added a desktop navigation sidebar, compact product header, clearer contract-stat cards, and a more readable create/inspect workflow.
+- Reorganized transaction-truth, semantic-boundary, deterministic-consequence, and reviewer-path sections into consistent portal-style cards.
+- Improved tablet/mobile responsiveness; the sidebar collapses into a compact mobile header.
+- No contract, deployment address, GenLayer transaction logic, wallet behavior, or source parity was changed.
+
+### Local gates
+
+- Source parity PASS.
+- Static check PASS.
+- 7/7 tests PASS.
+- Production build PASS.
+- Production Vercel E2E remains pending direct runtime verification.
+
 ## 1.0.0 — 2026-09-01
 
 ### Added
