@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090b0e" />
+  <meta name="description" content="CycleGuard — GenLayer semantic guard for two-clause circular preconditions." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/logo-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/src/styles.css" />
+  <meta property="og:title" content="CycleGuard" />
+  <meta property="og:description" content="Detect two-clause circular preconditions before a workflow activates." />
+  <meta property="og:image" content="/og-image.png" />
+  <title>CycleGuard · GenLayer</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="CycleGuard home">
+        <img src="/logo-64.png" alt="" />
+        <div><strong>CycleGuard</strong><span>GenLayer StudioNet</span></div>
+      </a>
+      <div class="top-actions">
+        <a class="ghost-button hide-mobile js-contract-link" target="_blank" rel="noreferrer">Explorer ↗</a>
+        <button class="wallet-button" id="connectWallet">◫ <span id="walletLabel">Connect wallet</span></button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="badge badge-success">✓ Accepted contract · fresh deployment</span>
+          <h1>Stop two-clause deadlocks <span>before activation.</span></h1>
+          <p>CycleGuard asks GenLayer validators one narrow semantic question: do both clauses require the other to happen first, leaving no valid first action?</p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#workspace">Test the guard ↗</a>
+            <a class="secondary-button js-contract-link" target="_blank" rel="noreferrer">View contract</a>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="node node-a"><span>A</span><small>waits for B</small></div>
+          <div class="loop loop-top">↗</div>
+          <div class="loop loop-bottom">↗</div>
+          <div class="node node-b"><span>B</span><small>waits for A</small></div>
+          <div class="guard-core"><b>⛨</b><strong>BLOCK</strong></div>
+        </div>
+      </section>
+
+      <section class="contract-strip">
+        <div>
+          <span class="eyebrow">Live contract</span>
+          <button class="address-copy" id="copyAddress"><span id="contractShort"></span> ⧉ <em id="copyState"></em></button>
+        </div>
+        <div class="metric"><span>Workspaces</span><strong id="workspaceCount">—</strong></div>
+        <div class="metric"><span>Clauses</span><strong id="clauseCount">—</strong></div>
+        <div class="metric"><span>Attempts</span><strong id="attemptCount">—</strong></div>
+        <div class="network-ok"><span></span> StudioNet</div>
+      </section>
+      <div class="inline-warning hidden" id="configError"></div>
+
+      <section id="workspace" class="workspace-grid section-wrap">
+        <div class="panel create-panel">
+          <div class="panel-heading">
+            <div><span class="eyebrow">01 · Create</span><h2>New immutable pair</h2></div><span class="panel-symbol">▦</span>
+          </div>
+          <p class="panel-lead">The contract stores exactly two clauses. They cannot be edited later.</p>
+          <div class="example-row">
+            <button id="loadCircular">Circular example</button>
+            <button id="loadExecutable">Executable example</button>
+          </div>
+          <label><span>Clause A</span><textarea id="clauseA" maxlength="4000" rows="6"></textarea><small id="countA">0/4000</small></label>
+          <label><span>Clause B</span><textarea id="clauseB" maxlength="4000" rows="6"></textarea><small id="countB">0/4000</small></label>
+          <button class="primary-button full" id="createWorkspace">⚡ Create workspace</button>
+          <p class="fineprint">Creating only writes a <strong>PENDING</strong> workspace. It does not claim the pair is safe.</p>
+        </div>
+
+        <div class="panel inspect-panel">
+          <div class="panel-heading">
+            <div><span class="eyebrow">02 · Inspect & finalize</span><h2>Read real contract state</h2></div><span class="panel-symbol">◎</span>
+          </div>
+          <div class="inspect-search"><input inputmode="numeric" min="1" placeholder="Workspace ID" id="workspaceId" /><button class="secondary-button" id="inspectWorkspace">↻ Inspect</button></div>
+          <div class="inline-warning hidden" id="readError"></div>
+          <div class="empty-state" id="emptyState"><span class="empty-icon">⑂</span><strong>No workspace loaded</strong><span>Create one or enter an existing workspace ID.</span></div>
+          <div class="workspace-card hidden" id="workspaceCard">
+            <div class="workspace-title"><div><span>Workspace</span><strong id="loadedWorkspaceId"></strong></div><span class="badge" id="workspaceStatus"></span></div>
+            <div class="owner-line"><span>Owner</span><code id="workspaceOwner"></code></div>
+            <div class="clause-card"><span id="clauseALabel"></span><p id="clauseAText"></p></div>
+            <div class="clause-card"><span id="clauseBLabel"></span><p id="clauseBText"></p></div>
+            <div class="workspace-stats">
+              <div class="metric"><span>Attempts</span><strong id="workspaceAttempts"></strong></div>
+              <div class="metric"><span>Deadlock blocks</span><strong id="workspaceBlocks"></strong></div>
+            </div>
+            <div class="verdict-card hidden" id="verdictCard"><span>Recorded verdict</span><strong id="verdictText"></strong><small id="verdictMeta"></small></div>
+            <button class="primary-button full" id="evaluatePair">⛨ Evaluate semantic pair</button>
+            <p class="fineprint">Finalization is permissionless. The connected reviewer wallet does not need to be the workspace owner.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-wrap transaction-section">
+        <div class="section-heading-row"><div><span class="eyebrow">Transaction truth</span><h2>FINALIZED is not the same as execution success.</h2></div></div>
+        <div class="truth-grid">
+          <div><span>1</span><strong>Wallet signature</strong><p>One user action sends one transaction. Buttons lock while it is in flight.</p></div>
+          <div><span>2</span><strong>Wait for FINALIZED</strong><p>The UI follows the real GenLayer receipt instead of guessing from a transaction hash.</p></div>
+          <div><span>3</span><strong>Check GenVM result</strong><p>Only FINISHED_WITH_RETURN is treated as successful execution; FINISHED_WITH_ERROR is surfaced as failure.</p></div>
+          <div><span>4</span><strong>Re-read state</strong><p>Workspace status, counters and verdicts are rendered from the deployed contract after execution.</p></div>
+        </div>
+        <div class="tx-card hidden" id="txCard"><div class="tx-icon" id="txIcon">◌</div><div class="tx-copy"><strong id="txLabel"></strong><span id="txMessage"></span><a class="hidden" id="txLink" target="_blank" rel="noreferrer"></a></div></div>
+      </section>
+
+      <section class="section-wrap how-grid">
+        <div class="panel semantic-panel"><span class="eyebrow">Semantic boundary</span><h2>Validators decide only the narrow part.</h2><div class="semantic-row good"><b>✓</b><div><strong>PAIR_EXECUTABLE</strong><span>At least one valid starter exists → workspace becomes ACTIVE.</span></div></div><div class="semantic-row bad"><b>×</b><div><strong>PAIR_DEADLOCKED</strong><span>Both directions require the other first → workspace becomes BLOCKED.</span></div></div></div>
+        <div class="panel deterministic-panel"><span class="eyebrow">Deterministic teeth</span><h2>State transitions stay on-chain.</h2><ul><li>✓ exactly two immutable clauses</li><li>✓ same-workspace pair enforcement</li><li>✓ one evaluation per workspace</li><li>✓ append-only attempt record</li><li>✓ blocked pair increments deadlock_blocks</li></ul></div>
+      </section>
+
+      <section class="section-wrap reviewer-panel">
+        <div><span class="eyebrow">Reviewer path</span><h2>Three moves, with any funded reviewer wallet.</h2></div>
+        <ol><li><span>01</span><div><strong>Connect MetaMask</strong><p>The app switches to GenLayer StudioNet when a transaction is signed.</p></div></li><li><span>02</span><div><strong>Create the circular example</strong><p>Wait for FINALIZED + FINISHED_WITH_RETURN; the loaded workspace must be PENDING.</p></div></li><li><span>03</span><div><strong>Evaluate the pair</strong><p>Expected: PAIR_DEADLOCKED, status BLOCKED, attempt_count 1, deadlock_blocks 1.</p></div></li></ol>
+        <a class="secondary-button js-contract-link" target="_blank" rel="noreferrer">Verify on Explorer ↗</a>
+      </section>
+    </main>
+
+    <footer><div class="brand footer-brand"><img src="/logo-64.png" alt="" /><div><strong>CycleGuard</strong><span>Pair-local. Immutable. Auditable.</span></div></div><div class="footer-links"><a class="js-contract-link" target="_blank" rel="noreferrer">Contract</a><span id="footerContract"></span></div></footer>
+  </div>
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
